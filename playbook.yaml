@@ -1,0 +1,9 @@
+---
+- name: Install NGINX
+  hosts: chibiop1
+  tasks: 
+  - name: Install NGINX on chibiop1
+    apt:
+      name: nginx
+      state: present
+

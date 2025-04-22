@@ -1,0 +1,25 @@
+---
+- name: Parameters
+  hosts: chibiop1
+  become: yes
+  handlers:
+    - name: 'Restart ssh'
+      service:
+        name: ssh
+        state: restarted
+  tasks:
+  - name: 'Update SSHd config'
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+      state: present
+      validate: 'sudo sshd -t -f %s'
+    with_items:
+      - regexp: "^(#)?PasswordAuthentication"
+        line: "PasswordAuthentication no"
+      - regexp: "^(#)?PermitRootLogin"
+        line: "PermitRootLogin no"
+      # - regexp: "^Port"
+      #   line: "Port 2849"
+    notify: restart ssh
