@@ -1,0 +1,27 @@
+---
+- hosts: sandbox
+  become: yes
+
+  tasks:
+  - name: Ensure chrony (for time synchronization) is installed.
+    apt:
+      name: chrony
+      state: present
+
+  - name: Ensure chrony is running.
+    service:
+      name: chronyd
+      state: started
+      enabled: yes
+
+# The same as the above play, but in super-compact form!
+- hosts: sandbox
+  become: yes
+  tasks:
+  - service: 
+      name: chronyd
+      state: present
+  - service: 
+      name: chronyd 
+      state: started 
+      enabled: yes
