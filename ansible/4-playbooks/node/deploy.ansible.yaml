@@ -1,0 +1,40 @@
+---
+- name: Basic installation for deployment
+  hosts: app
+  become: true
+  vars:
+    node_apps_location: /usr/local/opt/node
+
+  tasks:
+    - name: Update
+      ansible.builtin.apt:
+        update_cache: yes
+    - name: Install EPEL repo
+      ansible.builtin.apt:
+        name: epel-release
+        state: present
+    - name: Import REmi GPG key
+      ansible.builtin.rpm_key :
+        key: "https://rpms.remirepo.net/RPM-GPG-KEY-remi2018"
+        state: present
+    - name: Install Remi repo
+      apt:
+        name: "https://rpms.remirepo.net/enterprise/remi-release-8.rpm"
+        state: present
+    - name: Ensure firewalld is stopped (testing)
+      service:
+        name: firewalld
+        state: stopped
+    - name: Install npm/nodejs
+      ansible.builtin.apt:
+        name: npm
+        state: present
+        enablerepo: epel
+    - name: Install Forever
+      community.general.npm:
+        name: Forever
+        global: true
+        state: present
+        
+
+
