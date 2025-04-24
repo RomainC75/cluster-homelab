@@ -9,32 +9,48 @@
     - name: Update
       ansible.builtin.apt:
         update_cache: yes
-    - name: Install EPEL repo
-      ansible.builtin.apt:
-        name: epel-release
-        state: present
-    - name: Import REmi GPG key
-      ansible.builtin.rpm_key :
-        key: "https://rpms.remirepo.net/RPM-GPG-KEY-remi2018"
-        state: present
-    - name: Install Remi repo
+    - name: Install firewalld
       apt:
-        name: "https://rpms.remirepo.net/enterprise/remi-release-8.rpm"
+        name: firewalld
         state: present
     - name: Ensure firewalld is stopped (testing)
       service:
         name: firewalld
         state: stopped
-    - name: Install npm/nodejs
+    - name: Install nodejs
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+    - name: Install npm
       ansible.builtin.apt:
         name: npm
         state: present
-        enablerepo: epel
-    - name: Install Forever
-      community.general.npm:
-        name: Forever
+    - name: Install Forever through npm
+      npm:
+        name: forever
         global: true
         state: present
+    - name: Ensure Nodejs app folder exists
+      file:
+        path: "{{ node_apps_location }}"
+        state: directory
+    # ! use 'synchronize' of 'rsync' for big group of files !
+    - name : Copy file to the app folder
+      copy:
+        src: "app"
+        dest: "{{node_apps_location}}"
+    - name: Install app dependencies
+      npm:
+        path: "{{ node_apps_location }}/app"
+    - name: Check list of running apps
+      command: "/usr/local/bin/forever list"
+      register: forever_list
+      changed_when: false
+    - name: Run app with Forever
+      command: "/usr/local/bin/forever start {{node_apps_location}}/app/app.js"
+      when: "forever_list.stdout.find(node_apps_location+'/app/app.js') == -1"
+        
+
         
 
 

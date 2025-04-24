@@ -1,0 +1,45 @@
+
+Vagrant.configure("2") do |config|
+  
+    config.vm.box = "bento/ubuntu-22.04"
+    # By **default**, Vagrant generates a unique SSH key for each VM and **replaces the default insecure key** (called `insecure_private_key`).
+    # This is useful when:
+    # You're using Ansible or another tool expecting the default Vagrant key
+    # You don’t want to deal with changing SSH keys across boxes
+    # ! don't use it in production.
+    config.ssh.insert_key = false
+
+    # By default, Vagrant syncs your project directory (where the `Vagrantfile` is) into the guest VM at `/vagrant`.
+    # This disables that synced folder.
+    # Why disable it?
+    # - You don’t need the shared folder
+    # - You want to reduce VM boot time or avoid mount errors (especially with certain providers like VMware or Parallels)
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+  
+    config.vm.define "app1" do |sandbox|
+      sandbox.vm.hostname = "app1.local"
+      sandbox.vm.network "private_network", ip: "192.168.56.4"    
+      sandbox.vm.provider "vmware_desktop" do |v|
+        v.memory = 2048
+        v.cpus = 2
+      end
+    end
+  
+    config.vm.define "app2" do |sandbox|
+      sandbox.vm.hostname = "app2.local"
+      sandbox.vm.network "private_network", ip: "192.168.56.5"
+      sandbox.vm.provider "vmware_desktop" do |v|
+        v.memory = 2048
+        v.cpus = 2
+      end
+    end
+  
+    config.vm.define "db" do |sandbox|
+      sandbox.vm.hostname = "db.local"
+      sandbox.vm.network "private_network", ip: "192.168.56.6"
+      sandbox.vm.provider "vmware_desktop" do |v|
+        v.memory = 2048
+        v.cpus = 2
+      end
+    end
+  end

@@ -1,0 +1,28 @@
+---
+- hosts: all
+  become: yes
+  name: "test install"
+  tasks:
+  - name: update
+    apt:
+      update_cache: yes
+  - name: install
+    apt: 
+      name: 
+      - nginx
+      - s-tui
+      state: present
+  - name: copy files to destination
+    copy:
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+    with_items:
+      - src: "file1.txt"
+        dest: "/home/vagrant"
+      - src: "file2.txt"
+        dest: "/home/vagrant"
+  handlers:
+    - name: "launch service"
+      service:
+        name: nginx
+        state: started
