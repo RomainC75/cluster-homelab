@@ -17,6 +17,107 @@
       ansible.builtin.package:
         name: git
         state: present
+    - name: Ensure keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
 
+    - name: Download and dearmor Kubernetes signing key
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
+    - name: Set proper permissions on the GPG key
+      ansible.builtin.file:
+        path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        mode: '0644'
 
+    - name: Add Kubernetes APT repository (v1.31)
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
+
+    # - name: Update APT cache
+    #   ansible.builtin.apt:
+    #     update_cache: yes
+
+    - name: Install containerd/kubelet/kubeadm/kubectl
+      apt:
+        name: 
+        - containerd
+        - kubelet
+        - kubeadm
+        - kubectl
+        state: present
+        update_cache: yes
+
+    - name: Activate SystemdCgroup in /etc/example.conf
+      shell: mkdir -p /etc/containerd && containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
+
+    - name: Restart service containerd
+      service:
+        name: containerd
+        state: restarted 
+
+    - name: Disable swap 
+      ansible.builtin.shell: swapoff -a
+
+    - name: Disable swap permanently
+      ansible.builtin.replace: 
+        path: /etc/fstab
+        regexp: '^([^#].*\s+swap\s+.*)$'
+        replace: '# \1'
+        
+    - name: Activate ip_forward
+      ansible.builtin.replace:
+        path: /etc/sysctl.conf
+        regexp: '^#?(net\.ipv4\.ip_forward\s*=\s*1)'
+        replace: '\1'
+
+    - name: Reload sysctl after modifying sysctl.conf
+      command: sudo sysctl -p 
+
+- name: setup kubeadm
+  hosts: masters
+  become: true
+  tasks:
+    - name: launch the kubeadm setup on the master
+      command: kubeadm init --apiserver-advertise-address 192.168.56.254 --pod-network-cidr "10.244.0.0/16" --upload-certs
+      register: kubeadm_output
+
+    
+
+    - name: Get kubeadm join command and next line
+      set_fact:
+        kubeadm_join_full: |
+          {% set join_line_index = kubeadm_output.stdout_lines | select('search', '^kubeadm join ') | list | first %}
+          {% if join_line_index is not none %}
+            {{ kubeadm_output.stdout_lines[kubeadm_output.stdout_lines.index(join_line_index)] }}
+            {{ kubeadm_output.stdout_lines[kubeadm_output.stdout_lines.index(join_line_index) + 1] }}
+          {% else %}
+            "kubeadm join command not found"
+          {% endif %}
+
+          
+    # ! when kubeadm is ok !! 
+    - name: Show full kubeadm join command
+      debug:
+        var: kubeadm_join_full
+
+    - name: Remove newlines and tabs from kubeadm join command
+      set_fact:
+        kubeadm_join_cleaned: "{{ kubeadm_join_full | replace('\n', ' ') | replace('\t', ' ') }}"
+    - name: Show full kubeadm join command
+      debug:
+        var: kubeadm_join_cleaned
+
+    - name: Remove \\ using echo and sed
+      shell: echo "{{ kubeadm_join_cleaned }}" | sed 's/\\//g'
+      register: kubeadm_join_no_backslashes
+
+    - name: Show final cleaned kubeadm join command
+      debug:
+        var: kubeadm_join_no_backslashes.stdout
