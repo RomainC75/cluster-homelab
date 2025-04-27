@@ -45,20 +45,20 @@
     #     update_cache: yes
 
     - name: Install containerd/kubelet/kubeadm/kubectl
-      apt:
-        name: 
-        - containerd
-        - kubelet
-        - kubeadm
-        - kubectl
+      ansible.builtin.apt:
+        name:
+          - containerd
+          - kubelet
+          - kubeadm
+          - kubectl
         state: present
         update_cache: yes
 
     - name: Activate SystemdCgroup in /etc/example.conf
-      shell: mkdir -p /etc/containerd && containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
+      ansible.builtin.shell: mkdir -p /etc/containerd && containerd config default | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
 
     - name: Restart service containerd
-      service:
+      ansible.builtin.service:
         name: containerd
         state: restarted 
 
@@ -78,20 +78,74 @@
         replace: '\1'
 
     - name: Reload sysctl after modifying sysctl.conf
-      command: sudo sysctl -p 
+      ansible.builtin.command: sudo sysctl -p 
 
-- name: setup kubeadm
-  hosts: masters
-  become: true
-  tasks:
-    - name: launch the kubeadm setup on the master
-      command: kubeadm init --apiserver-advertise-address 192.168.56.254 --pod-network-cidr "10.244.0.0/16" --upload-certs
-      register: kubeadm_output
+    # =====  for flannel  =======
+    - name: Load a kernel module br_netfilter
+      ansible.builtin.shell: modprobe br_netfilter
 
+    - name: Make the settings persist in case of reboot for br_netfilter
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          br_netfilter
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Create /etc/sysctl.d/k8s.conf if not exists
+      ansible.builtin.file:
+        path: /etc/sysctl.d/k8s.conf
+        state: touch
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Set required sysctl params
+      ansible.builtin.blockinfile:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.ipv4.ip_forward                 = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Reload sysctl settings
+      ansible.builtin.command: sysctl --system
     
 
+- name: Setup kubeadm
+  hosts: masters
+  become: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+    # - name: Verify kubeadm is not launched
+    # Port 6443 10259  10257 is in use ? 
+
+
+    - name: Verify /etc/kubernetes/manifests/kube-apiserver.yaml exists
+      ansible.builtin.stat:
+        path: /etc/kubernetes/manifests/kube-apiserver.yaml
+      register: kubeapiserver_file
+
+    - name: Show stat of kube-apiserver.yaml
+      ansible.builtin.debug:
+        var: kubeapiserver_file
+
+    - name: Stop play if file exists
+      ansible.builtin.meta: end_play
+      when: kubeapiserver_file.stat.exists
+
+    - name: Launch the kubeadm setup on the master
+      ansible.builtin.command: kubeadm init --apiserver-advertise-address 192.168.56.254 --pod-network-cidr "10.244.0.0/16" --upload-certs
+      register: kubeadm_output
+
     - name: Get kubeadm join command and next line
-      set_fact:
+      ansible.builtin.set_fact:
         kubeadm_join_full: |
           {% set join_line_index = kubeadm_output.stdout_lines | select('search', '^kubeadm join ') | list | first %}
           {% if join_line_index is not none %}
@@ -101,23 +155,81 @@
             "kubeadm join command not found"
           {% endif %}
 
-          
     # ! when kubeadm is ok !! 
     - name: Show full kubeadm join command
-      debug:
+      ansible.builtin.debug:
         var: kubeadm_join_full
 
     - name: Remove newlines and tabs from kubeadm join command
-      set_fact:
+      ansible.builtin.set_fact:
         kubeadm_join_cleaned: "{{ kubeadm_join_full | replace('\n', ' ') | replace('\t', ' ') }}"
     - name: Show full kubeadm join command
-      debug:
+      ansible.builtin.debug:
         var: kubeadm_join_cleaned
 
     - name: Remove \\ using echo and sed
-      shell: echo "{{ kubeadm_join_cleaned }}" | sed 's/\\//g'
+      ansible.builtin.shell: echo "{{ kubeadm_join_cleaned }}" | sed 's/\\//g'
       register: kubeadm_join_no_backslashes
 
     - name: Show final cleaned kubeadm join command
-      debug:
+      ansible.builtin.debug:
         var: kubeadm_join_no_backslashes.stdout
+
+    - name: Copy content to a file in the master
+      ansible.builtin.copy:
+        content: "{{ kubeadm_join_no_backslashes.stdout }}"
+        dest: "{{ node_connection_command }}"
+        mode: "400"
+
+    - name: Get connection command
+      ansible.builtin.fetch:
+        src: "{{ node_connection_command }}"
+        dest: ./temp/               # path on your local machine (Ansible controller)
+        flat: true
+
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: "/home/{{ user }}/.kube"
+        state: directory
+        owner: "{{ user }}"
+        group: "{{ user }}"
+        mode: '0755'
+
+    - name: Copy kube config to user home
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        remote_src: true
+        dest: "/home/{{ user }}/.kube/config"
+        owner: "{{ user }}"
+        group: "{{ user }}"
+        mode: '0644'
+
+    # - name: Pause for 3 seconds
+    #   ansible.builtin.pause:
+    #     seconds: 10
+- name: Install flanel
+  hosts: masters
+  tasks:
+    - name: Apply Flannel CNI
+      ansible.builtin.shell: |
+        kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      args:
+        executable: /bin/bash
+
+
+    # sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+- name: Connect nodes to master
+  hosts: nodes
+  become: true
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Copy commands.txt to remote as a script
+      ansible.builtin.copy:
+        src: ./temp/kubeadm_join_command.txt
+        dest: /home/{{ user }}/kubeadm_join_command.sh
+        mode: '0755'
+
+    - name: Execute commands.sh on remote
+      ansible.builtin.shell: /home/{{ user }}/kubeadm_join_command.sh

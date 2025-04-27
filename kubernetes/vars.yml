@@ -1,8 +1,5 @@
-# The path where Drupal will be downloaded and installed.
-drupal_core_path: "/var/www/drupal"
+# 
+node_connection_command: "/tmp/kubeadm_join_command.txt"
 
-# The resulting domain will be [domain].test (with .test appended).
-domain: "drupal"
+user: vagrant
 
-# Your Drupal site name.
-drupal_site_name: "Drupal Test"
