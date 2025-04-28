@@ -9,7 +9,7 @@
 
 # containerd - all
 # $ sudo apt update 
-# $ sudo apt install -y containerd
+# $ sudo apt install -y containerd kubelet kubeadm kubectl
 
 
 # cgroups (systemd or cgoupfs)
@@ -46,15 +46,15 @@
 # then restart sysctl :
 # $ sudo sysctl -p
 # (with ansible : ansible all -b -m sysctl -a "name=net.ipv4.ip_forward value=1 state=present reload=yes")
+
+# MASTER : initialize control-plane node
+# $ sudo kubeadm init --apiserver-advertise-address 192.168.56.254 --pod-network-cidr "10.244.0.0/16" --upload-certs
 # ! get the "kubeadm join ..." command for the worker nodes  
 
-# when ok, copy /etc/kubernetes/admin.conf to ~/.kube:
+# MASTER : copy /etc/kubernetes/admin.conf to ~/.kube:
   # $ mkdir -p $HOME/.kube
   # $ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
   # $ sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-# initialize control-plane node
-# $ sudo kubeadm init --apiserver-advertise-address 192.168.56.254 --pod-network-cidr "10.244.0.0/16" --upload-certs
 
 # ? verify with : kubectl get nodes 
 
