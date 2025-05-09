@@ -1,0 +1,17 @@
+#cloud-config
+users:
+  - default
+  - name: rom
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh-authorized-keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMzUsEfqOaFUhpHTCZiVEw9HbdX/ShI++JwB3Wdca9D9 rom@master
+
+chpasswd:
+  list: |
+    rom:mypass
+  expire: false
+
+ssh_pwauth: true
+
+hostname: master
