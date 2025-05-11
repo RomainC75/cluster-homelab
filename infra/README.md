@@ -186,6 +186,9 @@ OR : network=hostbridge
   $ virsh dominfo ubuntu
   $ virsh dumpxml <vm-name>
 
+### network 
+  $ virsh net-dhcp-leases default
+  
 ## resource allocation
 
 ### edit xml

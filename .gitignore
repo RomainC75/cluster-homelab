@@ -1,2 +1,7 @@
 .ansible
 .vagrant
+*.img
+
+.terraform
+*.tfstate*
+*.hcl
