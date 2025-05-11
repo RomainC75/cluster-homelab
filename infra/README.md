@@ -10,14 +10,13 @@ https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-arm64.img
 
 # flash the board to boot on ssd !!
 
-# image . ok with "raspberrypi imager"
-
+# ubuntu 24.10 with "raspberrypi imager" -> 24.04 not working :
 ## OP5: 
 https://joshua-riek.github.io/ubuntu-rockchip-download/boards/orangepi-5.html
 
-https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v2.4.0/ubuntu-24.04-preinstalled-server-arm64-orangepi-5.img.xz
+https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v2.4.0/ubuntu-24.10-preinstalled-server-arm64-orangepi-5.img.xz
 
-## OP5+ --> virt-install is not working properly with 24.04  
+## OP5+ 
 https://joshua-riek.github.io/ubuntu-rockchip-download/boards/orangepi-5-plus.html
 
 https://github.com/Joshua-Riek/ubuntu-rockchip/releases/download/v2.4.0/ubuntu-24.10-preinstalled-server-arm64-orangepi-5-plus.img.xz
@@ -55,12 +54,18 @@ credentials : ubuntu/ubuntu
         IdentityFile ~/.ssh/rom_op5p1
         IdentitiesOnly yes
     ```
-8. setup ufw :
 
+8. 11. custom : 
+  sudo apt install zsh
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  set theme : bira/dallas
+9. setup ufw :
 
-9. setup fail2ban:
+10. setup fail2ban:
     ```apt-get install fail2ban```
-10. setup logging report system (logwatch ??)
+11. setup logging report system (logwatch ??)
+
+
 
 # create bridge from host + prevent the mac address from changing at each boot : 
 sudo vim /etc/netplan/10-dhcp-all-interfaces.yaml
@@ -165,14 +170,39 @@ OR : network=hostbridge
 
 ------------------------
 
-Commands : virsh list --all
-
-$ virsh shutdown ubuntu
-$ virsh destroy ubuntu
-$ virsh undefine ubuntu --nvram
-$ sudo rm /var/lib/libvirt/images/ubuntu.qcow2
 
 
+# handle VM : 
 
-============GARBAGE================
+ $ virsh list --all
 
+## shutdown/erase
+  $ virsh shutdown ubuntu
+  $ virsh destroy ubuntu
+  $ virsh undefine ubuntu --nvram
+  $ sudo rm /var/lib/libvirt/images/ubuntu.qcow2
+
+## get info
+  $ virsh dominfo ubuntu
+  $ virsh dumpxml <vm-name>
+
+## resource allocation
+
+### edit xml
+virsh edit ubuntu
+
+### if shutdown
+virsh setvcpus <vm-name> <count> --config
+virsh setmem <vm-name> <size-in-KiB> --config
+virsh setmaxmem <vm-name> <size-in-KiB> --config
+### if alive
+virsh setvcpus <vm-name> <count> --live
+virsh setmem <vm-name> <size-in-KiB> --live
+
+### resize disk image - shutdown : 
+sudo qemu-img resize /var/lib/libvirt/images/<disk>.qcow2 +10G
+
+
+## Snapshot : 
+sudo virsh save ubuntu /var/lib/libvirt/images/ubuntu.save
+sudo virsh restore /var/lib/libvirt/images/ubuntu.save
