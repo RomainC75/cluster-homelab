@@ -5,3 +5,9 @@
 .terraform
 *.tfstate*
 *.hcl
+
+temp/
+
+secret.yml
+garbage.sh
+private-infos

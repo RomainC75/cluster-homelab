@@ -166,10 +166,14 @@ $ virt-install --name ubuntu \
     --import
 ```
 
+options :
+--persistent : vms are transient by default (just present in memory)
+
 OR : network=hostbridge
 
 ------------------------
-
+# distent connection 
+virsh -c qemu+ssh://ubuntu@op5/system list --all
 
 
 # handle VM : 
@@ -209,3 +213,5 @@ sudo qemu-img resize /var/lib/libvirt/images/<disk>.qcow2 +10G
 ## Snapshot : 
 sudo virsh save ubuntu /var/lib/libvirt/images/ubuntu.save
 sudo virsh restore /var/lib/libvirt/images/ubuntu.save
+
+
