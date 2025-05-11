@@ -12,9 +12,3 @@ terraform {
 provider "aws" {
   region = "eu-west-3"
 }
-
-
-
-# data "aws_secretsmanager_secret_version" "database_password" {
-#   secret_id = "my-database-password"
-# }
