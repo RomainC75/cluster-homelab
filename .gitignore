@@ -11,3 +11,6 @@ temp/
 secret.yml
 garbage.sh
 private-infos
+
+*.pem
+*.pub
