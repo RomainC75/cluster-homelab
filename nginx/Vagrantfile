@@ -1,0 +1,35 @@
+
+Vagrant.configure("2") do |config|
+  
+  config.vm.box = "bento/ubuntu-22.04"
+
+  config.vm.define "app1" do |sandbox|
+    sandbox.vm.hostname = "sandbox1.local"
+    sandbox.vm.network "private_network", ip: "192.168.56.4" 
+    sandbox.vm.provision "shell", path: "vagrant/script.sh"
+    sandbox.vm.provider "vmware_desktop" do |v|
+      v.memory = 2048
+      v.cpus = 2
+    end
+  end
+
+  config.vm.define "app2" do |sandbox|
+    sandbox.vm.hostname = "sandbox2.local"
+    sandbox.vm.network "private_network", ip: "192.168.56.5"
+    sandbox.vm.provision "shell", path: "vagrant/script.sh"
+    sandbox.vm.provider "vmware_desktop" do |v|
+      v.memory = 2048
+      v.cpus = 2
+    end
+  end
+
+  config.vm.define "db" do |sandbox|
+    sandbox.vm.hostname = "sandbox2.local"
+    sandbox.vm.network "private_network", ip: "192.168.56.6"
+    sandbox.vm.provision "shell", path: "vagrant/script.sh"
+    sandbox.vm.provider "vmware_desktop" do |v|
+      v.memory = 2048
+      v.cpus = 2
+    end
+  end
+end
